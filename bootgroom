@@ -1,0 +1,67 @@
+#!/usr/bin/env python
+
+# This script will safely remove all unused kernels packages
+# It will not remove the current kernel, or the latest kernel installed.
+# It will not remove unpackaged kernels, as long as they didn't overwrite
+# packaged kernels.
+
+# 2011 GPLv2 or later
+# Simon Piette <piette.simon@gmail.com>
+
+import os
+import re
+import shutil
+from glob import glob
+from distutils.version import LooseVersion
+from optparse import OptionParser
+
+clean = False
+# which version are we running (uname -r)
+current = os.uname()[2]
+
+removable_kernels = []
+os.chdir('/var/lib/dpkg/info')
+# we use r'string' so we don't have to escape backslashes
+version_re = re.compile(r'linux-image-(\d.*).list')
+for k in glob('linux-image-*.list'):
+    m = version_re.match(k)
+    if m is None:
+        next
+    elif m.group(1) == current:
+        next
+    else:
+        removable_kernels.append(m.group(1))
+removable_kernels.sort(key=LooseVersion)
+# we don't to delete the last version
+if removable_kernels[-1] != current:
+    removable_kernels.pop()
+print(removable_kernels)
+
+# we make some disk space first in case the partition is full
+for k in removable_kernels:
+    initrd = "/boot/initrd.img-%s" % k 
+    if os.path.isfile(initrd):
+        if clean is True:
+            shutil.copy('/dev/null', initrd )
+        else:
+            print(("cp /dev/null %s" % initrd))
+
+# in worst cases, the latest install failed because of a full partition.
+# we fix that first
+cmd = 'apt-get -f install'
+if clean is True:
+    os.system(cmd)
+else:
+    print(cmd) 
+# TODO Check that the command exited succesfully or die
+
+# the goal! removing those unused kernels
+package_list = []
+for k in removable_kernels:
+    package_list.append('linux-image-%s' % k)
+cmd = 'apt-get remove %s' % ' '.join(package_list)
+if clean is True:
+    os.system(cmd)
+    print('ahhh')
+else:
+    print(cmd) 
