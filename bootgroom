@@ -23,17 +23,16 @@ global options
 
 def removable_kernels(options):
     removable_versions = []
-    os.chdir('/var/lib/dpkg/info')
-    # we use r'string' so we don't have to escape backslashes
-    version_re = re.compile(r'linux-image-(\d.*).md5sums')
-    for k in glob('linux-image-*.md5sums'):
-        m = version_re.match(k)
-        if m is None:
-            next
-        elif m.group(1) == current:
-            next
-        else:
-            removable_versions.append(m.group(1))
+    installed_re = re.compile(r'^(\w+) (\w+) installed$')
+    linux_re = re.compile(r'^linux-image-(\d+.*)')
+    # We're looking for installed linux-image-{version} packages
+    for pkg in deb822.Packages.iter_paragraphs(file('/var/lib/dpkg/status')):
+        if pkg.has_key('status') \
+           and pkg.has_key('package') \
+           and installed_re.search(pkg['status']) \
+           and linux_re.search(pkg['package']):
+               kernel_version = linux_re.match(pkg['package']).group(1)
+               removable_versions.append(kernel_version)
     removable_versions.sort(key=LooseVersion)
     # we don't to delete the last version
     if removable_versions[-1] != current:
