@@ -9,6 +9,7 @@
 # Simon Piette <piette.simon@gmail.com>
 
 import os
+import sys
 import re
 import shutil
 from glob import glob
@@ -83,6 +84,9 @@ def main():
     parser.add_option("-v","--verbose",action="store_true",help="Display execution on stdout %default]", default=False)
     parser.add_option("-c", "--clean",action="store_true",help="Clean /boot", default=False)
     (options, args) = parser.parse_args()
+    if options.clean is True and os.geteuid() != 0:
+        print('You need to be root to use ---clean')
+        sys.exit(1)
     removable_versions = removable_kernels(options=options)
     make_disk_space(removable_versions,options=options)
     aptfixinstall(options=options)
