@@ -18,27 +18,29 @@ from optparse import OptionParser
 from debian_bundle import deb822
 
 # which version are we running (uname -r)
-current = os.uname()[2]
 
 global options
 
 def removable_kernels(options):
+    current = os.uname()[2]
     removable_versions = []
     installed_re = re.compile(r'^(\w+) (\w+) installed$')
     linux_re = re.compile(r'^linux-image-(\d+.*)')
     # We're looking for installed linux-image-{version} packages
     for pkg in deb822.Packages.iter_paragraphs(file('/var/lib/dpkg/status')):
-        if pkg.has_key('status') \
-           and pkg.has_key('package') \
-           and installed_re.search(pkg['status']) \
-           and linux_re.search(pkg['package']):
-               kernel_version = linux_re.match(pkg['package']).group(1)
-               removable_versions.append(kernel_version)
+        if  pkg.has_key('status') \
+            and pkg.has_key('package') \
+            and installed_re.search(pkg['status']) \
+            and linux_re.search(pkg['package']):
+                kernel_version = linux_re.match(pkg['package']).group(1)
+                if kernel_version != current:
+                    removable_versions.append(kernel_version)
     removable_versions.sort(key=LooseVersion)
-    # we don't to delete the last version
-    if removable_versions[-1] != current:
+    # we don't want to delete the last version if it's more recent than current
+    if LooseVersion(removable_versions[-1]) > LooseVersion(current) \
+        and removable_versions[-1] != current:
         removable_versions.pop()
-    if options.verbose is True:
+    if options.quiet is False:
         print "Version to be removed:"
         for v in removable_versions:
             print v
@@ -53,7 +55,8 @@ def make_disk_space(kernels,options):
             if options.clean is True:
                 shutil.copy('/dev/null', initrd )
             else:
-                print(("cp /dev/null %s" % initrd))
+                if options.verbose is True:
+                    print(("cp /dev/null %s" % initrd))
 
 def aptfixinstall(options):
     # in worst cases, the latest install failed because of a full partition.
@@ -68,13 +71,14 @@ def removekernels(kernels,options):
         package_list.append('linux-image-%s' % k)
     cmd = 'apt-get remove %s' % ' '.join(package_list)
     execute(cmd,options)
-    print('ahhh')
+
 def execute(cmd,options):
     # TODO Check that the command exited succesfully or die
     if options.clean is True:
         os.system(cmd)
     else:
-        print(cmd) 
+        if options.verbose is True:
+            print(cmd) 
 
 def main():
     usage = """
@@ -83,6 +87,7 @@ def main():
     parser = OptionParser(usage=usage)
     parser.add_option("-v","--verbose",action="store_true",help="Display execution on stdout %default]", default=False)
     parser.add_option("-c", "--clean",action="store_true",help="Clean /boot", default=False)
+    parser.add_option("-q", "--quiet",action="store_true",help="No output", default=False)
     (options, args) = parser.parse_args()
     if options.clean is True and os.geteuid() != 0:
         print('You need to be root to use ---clean')
@@ -91,6 +96,8 @@ def main():
     make_disk_space(removable_versions,options=options)
     aptfixinstall(options=options)
     removekernels(removable_versions,options=options)
+    if options.quiet is False and options.clean is True:
+        print('ahhh')
 
 if __name__ == '__main__':
     main()
