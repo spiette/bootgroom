@@ -66,10 +66,14 @@ def aptfixinstall(options):
 
 def removekernels(kernels,options):
     # the goal! removing those unused kernels
+    if options.yes is True:
+        args = '--yes '
+    else:
+        args = ''
     package_list = []
     for k in kernels:
         package_list.append('linux-image-%s' % k)
-    cmd = 'apt-get remove %s' % ' '.join(package_list)
+    cmd = 'apt-get remove %s%s' % (args, ' '.join(package_list))
     execute(cmd,options)
 
 def execute(cmd,options):
@@ -87,6 +91,7 @@ def main():
     parser = OptionParser(usage=usage)
     parser.add_option("-v","--verbose",action="store_true",help="Display execution on stdout %default]", default=False)
     parser.add_option("-c", "--clean",action="store_true",help="Clean /boot", default=False)
+    parser.add_option("-y", "--yes",action="store_true",help="Assume yes for apt-remove", default=False)
     parser.add_option("-q", "--quiet",action="store_true",help="No output", default=False)
     (options, args) = parser.parse_args()
     if options.clean is True and os.geteuid() != 0:
