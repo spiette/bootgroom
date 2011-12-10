@@ -17,8 +17,6 @@ from distutils.version import LooseVersion
 from optparse import OptionParser
 from debian_bundle import deb822
 
-# which version are we running (uname -r)
-
 global options
 
 def removable_kernels(options):
@@ -92,12 +90,37 @@ def main():
     parser.add_option("-v","--verbose",action="store_true",help="Display execution on stdout %default]", default=False)
     parser.add_option("-c", "--clean",action="store_true",help="Clean /boot", default=False)
     parser.add_option("-y", "--yes",action="store_true",help="Assume yes for apt-remove", default=False)
+    parser.add_option("-Y", "--oh-yes",action="store_true",help="Assume yes (add -y for apt-remove)", default=False)
     parser.add_option("-q", "--quiet",action="store_true",help="No output", default=False)
     (options, args) = parser.parse_args()
-    if options.clean is True and os.geteuid() != 0:
-        print('You need to be root to use ---clean')
-        sys.exit(1)
+
     removable_versions = removable_kernels(options=options)
+
+    if options.clean is True:
+        if os.geteuid() != 0:
+            print('You need to be root to use ---clean')
+            sys.exit(1)
+        else:
+            # confirmation:
+            if options.oh_yes is False:
+                prompt = 'Remove? [Y|n|q] '
+                try:
+                    # Python 2
+                    answer = raw_input(prompt)
+                except NameError:
+                    # Python 3
+                    answer = input(prompt)
+
+                if answer.find('y', 0, 1) == 0 or answer.find('Y', 0, 1) == 0:
+                    print 'yes'
+                elif answer.find('n', 0, 1) == 0 or answer.find('N', 0, 1) == 0:
+                    options.clean = False
+                    if options.verbose is True:
+                        print('Commands to be run:')
+                else:
+                    print('Nothing removed')
+                    sys.exit(0)
+
     make_disk_space(removable_versions,options=options)
     aptfixinstall(options=options)
     removekernels(removable_versions,options=options)
