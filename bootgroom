@@ -4,6 +4,7 @@
 # It will not remove the current kernel, or the latest kernel installed.
 # It will not remove unpackaged kernels, as long as they didn't overwrite
 # packaged kernels.
+# By default it will also remove linux-headers packages
 
 # 2011 GPLv2 or later
 # Simon Piette <piette.simon@gmail.com>
@@ -19,20 +20,20 @@ from debian_bundle import deb822
 
 global options
 
-def removable_kernels(options):
+def removable_packages(package_re,options):
+    # re should be already compiled
     current = os.uname()[2]
     removable_versions = []
     installed_re = re.compile(r'^(\w+) (\w+) installed$')
-    linux_re = re.compile(r'^linux-image-(\d+.*)')
     # We're looking for installed linux-image-{version} packages
     for pkg in deb822.Packages.iter_paragraphs(file('/var/lib/dpkg/status')):
         if  pkg.has_key('status') \
             and pkg.has_key('package') \
             and installed_re.search(pkg['status']) \
-            and linux_re.search(pkg['package']):
-                kernel_version = linux_re.match(pkg['package']).group(1)
-                if kernel_version != current:
-                    removable_versions.append(kernel_version)
+            and package_re.search(pkg['package']):
+                package_version = package_re.match(pkg['package']).group(1)
+                if package_version != current:
+                    removable_versions.append(package_version)
     removable_versions.sort(key=LooseVersion)
     # we don't want to delete the last version if it's more recent than current
     if LooseVersion(removable_versions[-1]) > LooseVersion(current) \
@@ -62,15 +63,14 @@ def aptfixinstall(options):
     cmd = 'apt-get -f install'
     execute(cmd,options)
 
-def removekernels(kernels,options):
-    # the goal! removing those unused kernels
+def remove_package_versions(package,versions,options):
     if options.yes is True:
         args = '--yes '
     else:
         args = ''
     package_list = []
-    for k in kernels:
-        package_list.append('linux-image-%s' % k)
+    for version in versions:
+        package_list.append('%s-%s' % ( package, version))
     cmd = 'apt-get remove %s%s' % (args, ' '.join(package_list))
     execute(cmd,options)
 
@@ -88,13 +88,22 @@ def main():
     It will keep the running and the latest kernel."""
     parser = OptionParser(usage=usage)
     parser.add_option("-v","--verbose",action="store_true",help="Display execution on stdout %default]", default=False)
+    parser.add_option("-H", "--keep-headers",action="store_true",help="Don't remove linux-headers-* packages", default=False)
     parser.add_option("-c", "--clean",action="store_true",help="Clean /boot", default=False)
     parser.add_option("-y", "--yes",action="store_true",help="Assume yes for apt-remove", default=False)
     parser.add_option("-Y", "--oh-yes",action="store_true",help="Assume yes (add -y for apt-remove)", default=False)
     parser.add_option("-q", "--quiet",action="store_true",help="No output", default=False)
     (options, args) = parser.parse_args()
 
-    removable_versions = removable_kernels(options=options)
+    if options.quiet is False:
+        print 'Checking linux-image'
+    linux_re = re.compile(r'^linux-image-(\d+.*)')
+    linux_versions = removable_packages(linux_re, options)
+    if options.keep_headers is False:
+        if options.quiet is False:
+            print 'Checking linux-headers'
+        headers_re = re.compile(r'^linux-headers-(\d+.*)')
+        headers_versions = removable_packages(headers_re, options)
 
     if options.clean is True:
         if os.geteuid() != 0:
@@ -121,9 +130,11 @@ def main():
                     print('Nothing removed')
                     sys.exit(0)
 
-    make_disk_space(removable_versions,options=options)
+    make_disk_space(linux_versions,options=options)
     aptfixinstall(options=options)
-    removekernels(removable_versions,options=options)
+    remove_package_versions('linux-image', linux_versions,options=options)
+    if options.keep_headers is False:
+        remove_package_versions('linux-headers', headers_versions,options=options)
     if options.quiet is False and options.clean is True:
         print('ahhh')
 
