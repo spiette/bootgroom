@@ -87,7 +87,7 @@ def main():
     bootgroom remove unused packaged kernels.
     It will keep the running and the latest kernel."""
     parser = OptionParser(usage=usage)
-    parser.add_option("-v","--verbose",action="store_true",help="Display execution on stdout %default]", default=False)
+    parser.add_option("-v","--verbose",action="store_true",help="Display execution on stdout", default=False)
     parser.add_option("-H", "--keep-headers",action="store_true",help="Don't remove linux-headers-* packages", default=False)
     parser.add_option("-c", "--clean",action="store_true",help="Clean /boot", default=False)
     parser.add_option("-y", "--yes",action="store_true",help="Assume yes for apt-remove", default=False)

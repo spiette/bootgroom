@@ -23,20 +23,20 @@ Requirements
 Usage 
 -----
 
-`bootgroom`
+* `bootgroom`
 will list the packages to be removed.
-`bootgroom -v`
+* `bootgroom -v`
 will list the packages to be removed and show the command it will run.
-`bootgroom -c`
+* `bootgroom -c`
 will remove all unused and outdated kernel and kernel headers packages, with
 confirmation.
 
 Options
 -------
-  -h, --help          show this help message and exit
-  -v, --verbose       Display execution on stdout False]
-  -H, --keep-headers  Don't remove linux-headers-* packages
-  -c, --clean         Clean /boot
-  -y, --yes           Assume yes for apt-remove
-  -Y, --oh-yes        Assume yes (add -y for apt-remove)
-  -q, --quiet         No output
+* -h, --help          show this help message and exit
+* -v, --verbose       Display execution on stdout
+* -H, --keep-headers  Don't remove linux-headers-* packages
+* -c, --clean         Clean /boot
+* -y, --yes           Assume yes for apt-remove
+* -Y, --oh-yes        Assume yes (add -y for apt-remove)
+* -q, --quiet         No output
